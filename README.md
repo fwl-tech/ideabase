@@ -8,7 +8,7 @@ Knowledge base for FWL theme owners — capture links, notes, and research on du
 
 ## Stack
 
-- Next.js 14 + TypeScript + Tailwind
+- Next.js 14.2.35 + TypeScript + Tailwind
 - Supabase (schema: `ideabase`)
 - Clerk (Google SSO, `@fairwaterlabs.com` only)
 - Railway
