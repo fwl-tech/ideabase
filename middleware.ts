@@ -1,23 +1,24 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
 
 const BASE = '/apps/ideabase'
 
 const isPublicRoute = createRouteMatcher([
-  `${BASE}/login(.*)`,
-  `${BASE}/api/health(.*)`,
+  `${BASE}/login`,
+  `${BASE}/login/(.*)`,
+  `${BASE}/api/health`,
+  `${BASE}/api/health/(.*)`,
 ])
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {
     const { userId, sessionClaims } = await auth()
     if (!userId) {
-      const loginUrl = new URL(`${BASE}/login`, req.url)
-      return NextResponse.redirect(loginUrl)
+      const loginUrl = new URL(`${BASE}/login`, `https://${req.headers.get('x-forwarded-host') || req.headers.get('host') || 'hatchai.fairwaterlabs.com'}`)
+      return Response.redirect(loginUrl)
     }
     const email = sessionClaims?.email as string | undefined
     if (email && !email.endsWith('@fairwaterlabs.com')) {
-      return NextResponse.json({ error: 'Unauthorized: FWL accounts only' }, { status: 403 })
+      return Response.json({ error: 'Unauthorized: FWL accounts only' }, { status: 403 })
     }
   }
 })
