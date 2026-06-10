@@ -12,4 +12,3 @@ Knowledge base for FWL theme owners — capture links, notes, and research on du
 - Supabase (schema: `ideabase`)
 - Clerk (Google SSO, `@fairwaterlabs.com` only)
 - Railway
-- Deployed via Hatch AI provisioner
