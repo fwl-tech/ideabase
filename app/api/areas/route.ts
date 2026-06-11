@@ -16,7 +16,7 @@ export async function GET() {
     .eq('user_id', dbUser.id)
     .order('created_at', { ascending: false })
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
+  if (dbError) return NextResponse.json({ error: 'Failed to fetch areas' }, { status: 500 })
   return NextResponse.json(areas ?? [])
 }
 
@@ -37,6 +37,6 @@ export async function POST(req: Request) {
     .select()
     .single()
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
+  if (dbError) return NextResponse.json({ error: 'Failed to create area' }, { status: 500 })
   return NextResponse.json(data, { status: 201 })
 }

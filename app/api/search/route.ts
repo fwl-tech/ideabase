@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     p_user_id: dbUser.id,
   })
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
+  if (dbError) return NextResponse.json({ error: 'Search failed' }, { status: 500 })
 
   // Group matches by idea
   const grouped: Record<string, { idea_id: string; idea_title: string; area_id: string; area_name: string; matches: { type: string; excerpt: string }[] }> = {}

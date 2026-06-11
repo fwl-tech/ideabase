@@ -6,7 +6,8 @@ export async function getAuthenticatedUser() {
   const { userId, sessionClaims } = await auth()
   if (!userId) return null
   const email = sessionClaims?.email as string | undefined
-  if (!email?.endsWith('@fairwaterlabs.com')) return null
+  // Require a valid FWL email — reject sessions where email is missing or wrong domain
+  if (!email || !email.endsWith('@fairwaterlabs.com')) return null
   return { userId, email }
 }
 
@@ -20,16 +21,20 @@ export async function requireAuth() {
 
 export async function getOrCreateDbUser(clerkUserId: string, email: string, name?: string) {
   const supabase = createSupabaseServerClient()
-  const { data: existing } = await supabase
+
+  // Atomic upsert — avoids TOCTOU race on concurrent first-logins
+  const { data, error } = await supabase
     .from('users')
-    .select('*')
-    .eq('google_id', clerkUserId)
-    .single()
-  if (existing) return existing
-  const { data: created } = await supabase
-    .from('users')
-    .insert({ email, name: name ?? null, google_id: clerkUserId })
+    .upsert(
+      { email, name: name ?? null, clerk_id: clerkUserId },
+      { onConflict: 'clerk_id', ignoreDuplicates: false }
+    )
     .select()
     .single()
-  return created
+
+  if (error) {
+    console.error('[getOrCreateDbUser] upsert failed:', error.message)
+    return null
+  }
+  return data
 }

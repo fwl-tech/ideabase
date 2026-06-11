@@ -2,7 +2,7 @@ export interface User {
   id: string
   email: string
   name: string | null
-  google_id: string | null
+  clerk_id: string | null
   created_at: string
 }
 

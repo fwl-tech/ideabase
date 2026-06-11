@@ -2,9 +2,9 @@ import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import { getOrCreateDbUser } from '@/lib/auth'
 import { auth } from '@clerk/nextjs/server'
+import { NewAreaButton } from '@/components/NewAreaButton'
+import { BASE } from '@/lib/constants'
 import type { Area } from '@/types'
-
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '/apps/ideabase'
 
 export default async function HomePage() {
   const { userId, sessionClaims } = await auth()
@@ -32,7 +32,7 @@ export default async function HomePage() {
       </header>
 
       <div className="max-w-4xl mx-auto px-6 py-10">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
           <h2 className="text-2xl font-semibold text-gray-900">Areas of interest</h2>
           <NewAreaButton />
         </div>
@@ -63,16 +63,5 @@ export default async function HomePage() {
         )}
       </div>
     </main>
-  )
-}
-
-function NewAreaButton() {
-  return (
-    <button
-      onClick={undefined}
-      className="text-sm bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-    >
-      + New area
-    </button>
   )
 }

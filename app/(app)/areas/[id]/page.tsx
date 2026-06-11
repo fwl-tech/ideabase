@@ -3,9 +3,8 @@ import { notFound } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import { getOrCreateDbUser } from '@/lib/auth'
 import { auth } from '@clerk/nextjs/server'
+import { BASE } from '@/lib/constants'
 import type { Idea } from '@/types'
-
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '/apps/ideabase'
 
 export default async function AreaPage({ params }: { params: { id: string } }) {
   const { userId, sessionClaims } = await auth()

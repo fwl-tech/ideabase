@@ -3,6 +3,7 @@ import { requireAuth, getOrCreateDbUser } from '@/lib/auth'
 import { createSupabaseServerClient } from '@/lib/supabase'
 
 const UPDATABLE_FIELDS = ['title', 'status', 'problem', 'solution', 'commercial_models', 'competitors', 'demand_signals']
+const MAX_FIELD_LENGTH = 50000
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const { user, error } = await requireAuth()
@@ -39,7 +40,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const updates: Record<string, unknown> = {}
   for (const field of UPDATABLE_FIELDS) {
-    if (field in body) updates[field] = body[field]
+    if (field in body) {
+      const value = body[field]
+      if (typeof value === 'string' && value.length > MAX_FIELD_LENGTH) {
+        return NextResponse.json({ error: `${field} is too long` }, { status: 400 })
+      }
+      updates[field] = value
+    }
   }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
@@ -57,7 +64,27 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     .select()
     .single()
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
+  // PGRST116 = "0 rows returned by .single()" — the idea doesn't exist or belongs to another user
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (dbError) return NextResponse.json({ error: 'Failed to update idea' }, { status: 500 })
   return NextResponse.json(data)
+}
+
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+
+  const supabase = createSupabaseServerClient()
+  const dbUser = await getOrCreateDbUser(user!.userId, user!.email)
+  if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+  const { error: dbError, count } = await supabase
+    .from('ideas')
+    .delete({ count: 'exact' })
+    .eq('id', params.id)
+    .eq('user_id', dbUser.id)
+
+  if (dbError) return NextResponse.json({ error: 'Failed to delete idea' }, { status: 500 })
+  if (count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  return new Response(null, { status: 204 })
 }
