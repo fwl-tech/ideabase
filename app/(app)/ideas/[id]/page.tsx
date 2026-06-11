@@ -4,9 +4,8 @@ import { createSupabaseServerClient } from '@/lib/supabase'
 import { getOrCreateDbUser } from '@/lib/auth'
 import { auth } from '@clerk/nextjs/server'
 import { QuickCapture } from '@/components/QuickCapture'
+import { BASE } from '@/lib/constants'
 import type { Idea, Link as LinkType, Note, Conversation } from '@/types'
-
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '/apps/ideabase'
 
 const OPINION_FIELDS: { key: keyof Idea; label: string }[] = [
   { key: 'problem', label: 'Problem' },
@@ -33,7 +32,13 @@ export default async function IdeaPage({ params }: { params: { id: string } }) {
     .single()
   if (!idea) notFound()
 
-  const { data: area } = await supabase.from('areas').select('*').eq('id', idea.area_id).single()
+  // Scope area fetch to the authenticated user as well
+  const { data: area } = await supabase
+    .from('areas')
+    .select('*')
+    .eq('id', idea.area_id)
+    .eq('user_id', dbUser.id)
+    .single()
 
   const [{ data: links }, { data: notes }, { data: conversations }] = await Promise.all([
     supabase.from('links').select('*').eq('idea_id', params.id).order('added_at', { ascending: false }),
@@ -107,12 +112,18 @@ function FeedItem({ item }: { item: { type: 'link' | 'note' | 'conversation'; cr
 
   if (item.type === 'link') {
     const l = item.data as LinkType
+    // Only render safe http/https URLs to prevent protocol injection
+    const isSafeUrl = l.url.startsWith('https://') || l.url.startsWith('http://')
     return (
       <div className="border border-gray-200 rounded-xl p-4">
         <div className="flex items-start justify-between gap-2">
-          <a href={l.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:underline truncate">
-            {l.title ?? l.url}
-          </a>
+          {isSafeUrl ? (
+            <a href={l.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:underline truncate">
+              {l.title ?? l.url}
+            </a>
+          ) : (
+            <span className="text-sm font-medium text-gray-600 truncate">{l.title ?? l.url}</span>
+          )}
           <span className="text-xs text-gray-400 flex-shrink-0">{date}</span>
         </div>
         {l.summary && <p className="text-sm text-gray-600 mt-1.5">{l.summary}</p>}

@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
-
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '/apps/ideabase'
+import { useRouter } from 'next/navigation'
+import { BASE } from '@/lib/constants'
 
 type CaptureType = 'link' | 'note' | 'conversation'
 
@@ -10,49 +10,62 @@ interface Props {
 }
 
 export function QuickCapture({ ideaId }: Props) {
+  const router = useRouter()
   const [type, setType] = useState<CaptureType>('link')
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({ url: '', note: '', summary: '', contact_name: '', contact_role: '', date: '' })
 
   function reset() {
     setForm({ url: '', note: '', summary: '', contact_name: '', contact_role: '', date: '' })
+    setError(null)
     setOpen(false)
   }
 
   async function handleSave() {
     setSaving(true)
+    setError(null)
     try {
+      let endpoint: string
+      let payload: Record<string, unknown>
+
       if (type === 'link') {
-        if (!form.url.trim()) return
-        await fetch(`${BASE}/api/links`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idea_id: ideaId, url: form.url.trim() }),
-        })
+        if (!form.url.trim()) { setSaving(false); return }
+        endpoint = `${BASE}/api/links`
+        payload = { idea_id: ideaId, url: form.url.trim() }
       } else if (type === 'note') {
-        if (!form.note.trim()) return
-        await fetch(`${BASE}/api/notes`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idea_id: ideaId, body: form.note.trim() }),
-        })
+        if (!form.note.trim()) { setSaving(false); return }
+        endpoint = `${BASE}/api/notes`
+        payload = { idea_id: ideaId, body: form.note.trim() }
       } else {
-        if (!form.summary.trim()) return
-        await fetch(`${BASE}/api/conversations`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            idea_id: ideaId,
-            summary: form.summary.trim(),
-            contact_name: form.contact_name || null,
-            contact_role: form.contact_role || null,
-            date: form.date || null,
-          }),
-        })
+        if (!form.summary.trim()) { setSaving(false); return }
+        endpoint = `${BASE}/api/conversations`
+        payload = {
+          idea_id: ideaId,
+          summary: form.summary.trim(),
+          contact_name: form.contact_name || null,
+          contact_role: form.contact_role || null,
+          date: form.date || null,
+        }
       }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body?.error ?? 'Failed to save. Please try again.')
+        return
+      }
+
       reset()
-      window.location.reload()
+      router.refresh()
+    } catch {
+      setError('Failed to save. Please check your connection and try again.')
     } finally {
       setSaving(false)
     }
@@ -74,7 +87,7 @@ export function QuickCapture({ ideaId }: Props) {
         {(['link', 'note', 'conversation'] as CaptureType[]).map((t) => (
           <button
             key={t}
-            onClick={() => setType(t)}
+            onClick={() => { setType(t); setError(null) }}
             className={`text-xs px-3 py-1.5 rounded-lg capitalize transition-colors ${
               type === t ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
@@ -140,6 +153,8 @@ export function QuickCapture({ ideaId }: Props) {
           />
         </div>
       )}
+
+      {error && <p className="text-red-500 text-xs">{error}</p>}
 
       <div className="flex gap-2 justify-end">
         <button onClick={reset} className="text-sm text-gray-400 hover:text-gray-700 px-3 py-1.5">Cancel</button>

@@ -1,32 +1,34 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '/apps/ideabase'
-
-interface SearchResult {
-  idea_id: string
-  idea_title: string
-  area_id: string
-  area_name: string
-  matches: { type: string; excerpt: string }[]
-}
+import { BASE } from '@/lib/constants'
+import type { SearchResult } from '@/types'
 
 export default function SearchPage() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     if (!query.trim()) return
     setLoading(true)
     setSearched(false)
+    setSearchError(null)
     try {
       const res = await fetch(`${BASE}/api/search?q=${encodeURIComponent(query)}`)
+      if (!res.ok) {
+        setSearchError('Search failed. Please try again.')
+        setResults([])
+        return
+      }
       const data = await res.json()
       setResults(Array.isArray(data) ? data : [])
+    } catch {
+      setSearchError('Search failed. Please check your connection and try again.')
+      setResults([])
     } finally {
       setLoading(false)
       setSearched(true)
@@ -60,8 +62,12 @@ export default function SearchPage() {
           </button>
         </form>
 
-        {searched && results.length === 0 && (
-          <p className="text-gray-400 text-sm text-center py-10">No results for "{query}".</p>
+        {searchError && (
+          <p className="text-red-500 text-sm text-center py-4">{searchError}</p>
+        )}
+
+        {!searchError && searched && results.length === 0 && (
+          <p className="text-gray-400 text-sm text-center py-10">No results for &ldquo;{query}&rdquo;.</p>
         )}
 
         <div className="space-y-6">
@@ -78,7 +84,8 @@ export default function SearchPage() {
                 {r.matches.map((m, i) => (
                   <div key={i} className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
                     <span className="text-xs text-gray-400 mr-2 capitalize">{m.type}</span>
-                    <span dangerouslySetInnerHTML={{ __html: m.excerpt }} />
+                    {/* Render excerpt as plain text to prevent XSS — bold markers stripped */}
+                    <span>{m.excerpt.replace(/<[^>]+>/g, '')}</span>
                   </div>
                 ))}
               </div>
